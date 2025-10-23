@@ -1,0 +1,70 @@
+horse
+ros
+
+distance[0] = 1 // word1[0] != word2[0]
+distance[1] = 1 // word1[1] == word2[1]
+distance[2] = 2 // word1[2] != word2[2]
+distance[3] = distance[1] + 1 = 2 // word1[3] == word2[2]
+distance[4] = 
+
+
+thisisatestsentence
+thisisasentence
+
+
+
+
+
+
+
+
+word2 -> target
+
+h -> r - 1
+ho -> r - 2 because h->r 1 and o != r
+hor -> r - 2 because ho->r 2 and r == r
+hors -> r - 3 because hor->r 2 and s != r
+horse -> r - 4 because hors->r 3 and e != r
+
+
+h -> ro - 2 min (h->r + 1)
+ho -> ro -> 1 min(h -> r, h -> ro + 1)
+hor -> ro -> min(ho -> ro + 1, )
+
+horse -> r -> 4 (remove 4 letters)
+horse -> ro -> ()
+
+
+Assume the simpler case where len(v) == len(w).
+
+lets say in order to transform
+w = w1, w2, w3 ... wn into 
+v = v1, v2, v3 ... vn 
+
+we need x transformations. Lets denote number of transformations needed to transform as f().
+
+f(1..n, 1..n) == x
+
+then
+
+f(1..n+1, 1..n) = min of
+    f(1..n, 1..n) + 1 - one removal of w(n+1)
+    f(1..n+1, 1..n-1) + 1 - one addition of v(n)
+    f(1..n, 1..n-1) + (1 or 0) - one replacement if not equal, 0 changes if equal
+
+
+Given that f(1..n, 1..n) and f(1..n+1, 1..n-1) and f(1..n, 1..n-1) are the best. f(1..n+1, 1..n) - is the best!
+Lets say more generall
+
+f(1..m, 1..n) = min
+    f(1..m-1, 1..n) + 1 - one removal of w(m)
+    f(1..m, 1..n-1) + 1 - one addition of v(n)
+    f(1..m-1, 1..n-1) + 1 - if w(m) != v(n) - one replacement
+    f(1..m-1, 1..n-1) + 0 - if w(m) == v(n) - no changes needed!
+
+
+NEEDED TO INCLUDE selection of 0 elements from the left or right set... stupid me... could've discovered this on edge cases with one element probably.
+
+
+
+then in order to transform
