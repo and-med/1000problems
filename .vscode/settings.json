@@ -3,6 +3,9 @@
         "ostream": "cpp",
         "iostream": "cpp",
         "string_view": "cpp",
-        "new": "cpp"
+        "new": "cpp",
+        "cstddef": "cpp",
+        "vector": "cpp",
+        "stdexcept": "cpp"
     }
 }
