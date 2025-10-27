@@ -2,11 +2,11 @@
 #include <vector>
 #include <stack>
 #include <memory>
+#include <optional>
 using namespace std;
 
-namespace {
 enum TokenType {
-    PLUS, UNARY_PLUS, MINUS, UNARY_MINUS, LEFT_BRACKET, RIGHT_BRACKET, NUMBER,
+    PLUS, MINUS, LEFT_BRACKET, RIGHT_BRACKET, NUMBER,
 };
 
 class Token {
@@ -22,11 +22,7 @@ public:
         }
         return atoi(_value.c_str()); 
     }
-    bool isBinaryOp() const { return _type == PLUS || _type == MINUS; }
-    bool isUnaryOp() const { return _type == UNARY_PLUS || _type == UNARY_MINUS; }
     bool isNumber() const { return _type == NUMBER; }
-    bool isLeftBracket() const { return _type == LEFT_BRACKET; }
-    bool isRightBracket() const { return _type == RIGHT_BRACKET; }
 private:
     TokenType _type;
     string _value;
@@ -96,11 +92,13 @@ class Expr {
 public:
     virtual int eval() = 0;
     virtual string toString() = 0;
+    virtual ~Expr() {}
 };
 
 class NumberExpr: public Expr {
 public:
     NumberExpr(int number): _number(number) {}
+    ~NumberExpr() override {}
     int eval() override {
         return _number;
     }
@@ -114,6 +112,7 @@ private:
 class BinaryOp: public Expr {
 public:
     BinaryOp(unique_ptr<Expr> left, Token op, unique_ptr<Expr> right): _left(move(left)), _op(op), _right(move(right)) {}
+    ~BinaryOp() override {}
     int eval() override {
         if (_op.type() == TokenType::PLUS) {
             return _left->eval() + _right->eval();
@@ -134,6 +133,7 @@ private:
 class UnaryOp: public Expr {
 public:
     UnaryOp(Token op, unique_ptr<Expr> expr): _op(op), _expr(move(expr)) {}
+    ~UnaryOp() override {}
     int eval() override {
         if (_op.type() == TokenType::PLUS) {
             return _expr->eval();
@@ -150,119 +150,58 @@ private:
     Token _op;
 };
 
-class Evaluator {
+class Parser {
 public:
-    Evaluator(vector<Token> tokens): _tokens(tokens), _pos(0) {}
+    Parser(vector<Token> tokens): _tokens(tokens), _pos(0) {}
 
-    // rules:
-    // <unary_expr> = <un_op>(<expr>) (<bin_op> <expr>)*
-    // <expr> = "(" <expr> ")" (<bin_op> <expr>)*
-    // <expr> = <consumeNumber> (<bin_op> <expr>)*
-    // <expr> = <un_op><consumeNumber> (<bin_op> <expr>)*
-    // <bin_op> = +|-
-    // <un_op> = +|-
+    unique_ptr<Expr> expression() {
+        return addition();
+    }
 
-    bool expression() {
-        if (isNumber()) {
-            auto number = consumeTop();
+    unique_ptr<Expr> addition() {
+        unique_ptr<Expr> left = move(unary());
 
-            if (isOperation()) {
-                auto op = consumeTop();
-
-                if (!expression()) {
-                    return error("expected expression after binary operation");
-                }
-                auto rightExpr = move(_expressions.top());
-                _expressions.pop();
-                _expressions.push(make_unique<BinaryOp>(make_unique<NumberExpr>(number.asNumber()), op, move(rightExpr)));
-            } else {
-                _expressions.push(make_unique<NumberExpr>(number.asNumber()));
-            }
-            return true;
-        }
-
-        // nested expression
-        if (isLeftBracket()) {
-            consumeTop();
-            if (!expression()) {
-                return error("expected expression after left bracket");
-            }
-
-            if (!isRightBracket()) {
-                return error("expected right bracket after opening left bracket and expression");
-            }
-            consumeTop();
-
-            auto leftExpr = move(_expressions.top());
-            _expressions.pop();
-
-            if (isOperation()) {
-                auto op = consumeTop();
-
-                if (!expression()) {
-                    return error("expected expression after binary operation");
-                }
-                auto rightExpr = move(_expressions.top());
-                _expressions.pop();
-                _expressions.push(make_unique<BinaryOp>(move(leftExpr), op, move(rightExpr)));
-            } else {
-                _expressions.push(move(leftExpr));
-            }
-            return true;
-        }
-
-        // Unary Operation
-        if (isOperation()) {
+        while (check(TokenType::PLUS) || check(TokenType::MINUS)) {
             auto op = consumeTop();
-            if (isNumber()) {
-                auto number = consumeTop().asNumber();
-                auto expr = make_unique<UnaryOp>(op, make_unique<NumberExpr>(number));
+            auto right = move(unary());
+            left = make_unique<BinaryOp>(move(left), op, move(right));
+        }
 
-                if (isOperation()) {
-                    auto op = consumeTop();
+        return left;
+    }
 
-                    if (!expression()) {
-                        return error("expected expression after binary operation");
-                    }
-                    auto rightExpr = move(_expressions.top());
-                    _expressions.pop();
-                    _expressions.push(make_unique<BinaryOp>(move(expr), op, move(rightExpr)));
-                } else {
-                    _expressions.push(move(expr));
-                }
-            } else if (isLeftBracket()) {
-                consumeTop();
-                if (!expression()) {
-                    return error("expected expression after left bracket");
-                }
+    unique_ptr<Expr> unary() {
+        if (check(TokenType::PLUS) || check(TokenType::MINUS)) {
+            auto op = consumeTop();
+            unique_ptr<Expr> right = move(unary());
+            return make_unique<UnaryOp>(op, move(right));
+        }
 
-                if (!isRightBracket()) {
-                    return error("expected right bracket after opening left bracket and expression");
-                }
-                consumeTop();
+        return primary();
+    }
 
-                auto expr = move(_expressions.top());
-                _expressions.push(make_unique<UnaryOp>(op, move(expr)));
+    unique_ptr<Expr> primary() {
+        if (check(TokenType::NUMBER)) {
+            auto top = consumeTop();
+            return make_unique<NumberExpr>(top.asNumber());
+        }
+
+        if (check(TokenType::LEFT_BRACKET)) {
+            // consume left bracket
+            consumeTop();
+            auto inner = move(expression());
+            if (!check(TokenType::RIGHT_BRACKET)) {
+                throw error("unmatched left bracket");
             }
-            return true;
+            // consume right bracket
+            consumeTop();
+            return inner;
         }
 
-        return error("unexpected token");
+        throw error("expected expression");
     }
 
-    int value() {
-        if (!isValid()) {
-            throw new runtime_error("stack is invalid!");
-        }
-
-        return _expressions.top()->eval();
-    }
-
-    bool isValid() {
-        return _expressions.size() == 1;
-    }
-
-    bool error(string message) {
+    runtime_error error(string message) {
         string position;
 
         if (atEnd()) {
@@ -278,18 +217,19 @@ public:
             value = peek().value();
         }
 
-        cout << message + " at position " + position + " but got '" + value + "'" << endl;
-        return false;
+        string error_message = message + " at position " + position + " but got '" + value + "'";
+        return runtime_error(error_message);
     }
 
-    bool isOperation() { return !atEnd() && peek().isBinaryOp(); }
-    bool isNumber() { return !atEnd() && peek().isNumber(); }
-    bool isLeftBracket() { return !atEnd() && peek().isLeftBracket(); }
-    bool isRightBracket() { return !atEnd() && peek().isRightBracket(); }
     Token consumeTop() {
         auto top = peek();
         advance();
         return top;
+    }
+
+    bool check(TokenType type) {
+        if (atEnd()) return false;
+        return peek().type() == type;
     }
 
     Token peek() {
@@ -306,24 +246,14 @@ public:
 private:
     vector<Token> _tokens;
     int _pos;
-    stack<unique_ptr<Expr>> _expressions;
-};
 };
 
 class Solution {
 public:
     int calculate(string s) {
-        // Convert string to token for ease of processing
         Tokenizer tokenizer(s);
-        vector<Token> tokens = tokenizer.tokenize();
-
-        Evaluator eval(tokens);
-
-        if (eval.expression() && eval.isValid()) {
-            return eval.value();
-        }
-
-        return -1;
+        Parser parser(tokenizer.tokenize());
+        return parser.expression()->eval();
     }
 };
 
@@ -331,6 +261,7 @@ int main() {
     Solution sol;
 
     cout << sol.calculate("1 + 1") << endl;
+    cout << sol.calculate("   -1 + 3") << endl;
     cout << sol.calculate(" 2-1 + 2 ") << endl;
     cout << sol.calculate("(1+(4+5+2)-3)+(6+8)") << endl;
 }

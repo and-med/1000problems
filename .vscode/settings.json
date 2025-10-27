@@ -6,6 +6,8 @@
         "new": "cpp",
         "cstddef": "cpp",
         "vector": "cpp",
-        "stdexcept": "cpp"
+        "stdexcept": "cpp",
+        "optional": "cpp",
+        "type_traits": "cpp"
     }
 }
