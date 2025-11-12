@@ -12,27 +12,23 @@ public:
     class AdjLists {
     private:
         map<int, set<int>> _lists;
-
-        void remove(int left, int right) {
-            _lists.erase(left);
-            _lists[right].erase(left);
-
-            if (_lists[right].size() == 0 
-                // Only remove if this is not the last element! EW, ugly!
-                && _lists.size() > 1) {
-                _lists.erase(right);
-            }
-        }
+        vector<int> _leafs;
     public:
-        AdjLists(int n): _lists() {
+        AdjLists(int n, const vector<vector<int>>& edges): _lists(), _leafs() {
             for (int i = 0; i < n; i++) {
                 _lists[i] = set<int>();
             }
-        }
 
-        void insert(const vector<int>& edge) {
-            _lists[edge[0]].insert(edge[1]);
-            _lists[edge[1]].insert(edge[0]);
+            for (auto edge : edges) {
+                _lists[edge[0]].insert(edge[1]);
+                _lists[edge[1]].insert(edge[0]);
+            }
+
+            for (auto pair : _lists) {
+                if (pair.second.size() <= 1) {
+                    _leafs.push_back(pair.first);
+                }
+            }
         }
 
         size_t size() const {
@@ -40,40 +36,44 @@ public:
         }
 
         void removeLeafs() {
-            vector<pair<int, int>> to_remove;
+            set<int> potentialLeafs;
 
-            for (auto pair : _lists) {
-                if (pair.second.size() == 1) {
-                    to_remove.push_back(make_pair(pair.first, *pair.second.begin()));
-                }
+            for (auto leaf : _leafs) {
+                // Leafs have exactly one adj vertice
+                auto potentialLeaf = *_lists[leaf].begin();
+                // Drop it now, hahha, bye
+                _lists.erase(leaf);
+                _lists[potentialLeaf].erase(leaf);
+
+                potentialLeafs.insert(potentialLeaf);
             }
 
-            for (auto pair : to_remove) {
-                remove(pair.first, pair.second);
+            // Build new leafs from potential leafs!
+            _leafs.clear();
+
+            for (auto leaf : potentialLeafs) {
+                set<int>& adjToPotentialLeaf = _lists[leaf];
+
+                if (adjToPotentialLeaf.size() <= 1) {
+                    _leafs.push_back(leaf);
+                }
             }
         }
 
-        vector<int> trees() {
-            vector<int> resp;
-            for (auto pair : _lists) {
-                resp.push_back(pair.first);
-            }
-            return resp;
+        vector<int> leafs() {
+            return _leafs;
         }
     };
 
     vector<int> findMinHeightTrees(int n, vector<vector<int>>& edges) {
-        AdjLists adjLists(n);
+        AdjLists adjLists(n, edges);
 
-        for (auto edge : edges) {
-            adjLists.insert(edge);
-        }
-
+        // 2 or less - means leafs will contain tree roots!
         while (adjLists.size() > 2) {
             adjLists.removeLeafs();
         }
         
-        return adjLists.trees();
+        return adjLists.leafs();
     }
 private:
 };
