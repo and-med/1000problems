@@ -11,28 +11,25 @@ class Solution {
 public:
     class AdjLists {
     private:
-        map<int, set<int>> _lists;
+        vector<set<int>> _lists;
         vector<int> _leafs;
+        int _n;
     public:
-        AdjLists(int n, const vector<vector<int>>& edges): _lists(), _leafs() {
-            for (int i = 0; i < n; i++) {
-                _lists[i] = set<int>();
-            }
-
+        AdjLists(int n, const vector<vector<int>>& edges): _n(n), _lists(n, set<int>()), _leafs() {
             for (auto edge : edges) {
                 _lists[edge[0]].insert(edge[1]);
                 _lists[edge[1]].insert(edge[0]);
             }
 
-            for (auto pair : _lists) {
-                if (pair.second.size() <= 1) {
-                    _leafs.push_back(pair.first);
+            for (int i = 0; i < n; i++) {
+                if (_lists[i].size() <= 1) {
+                    _leafs.push_back(i);
                 }
             }
         }
 
         size_t size() const {
-            return _lists.size();
+            return _n;
         }
 
         void removeLeafs() {
@@ -41,10 +38,8 @@ public:
             for (auto leaf : _leafs) {
                 // Leafs have exactly one adj vertice
                 auto potentialLeaf = *_lists[leaf].begin();
-                // Drop it now, hahha, bye
-                _lists.erase(leaf);
+                _n--;
                 _lists[potentialLeaf].erase(leaf);
-
                 potentialLeafs.insert(potentialLeaf);
             }
 
@@ -52,9 +47,7 @@ public:
             _leafs.clear();
 
             for (auto leaf : potentialLeafs) {
-                set<int>& adjToPotentialLeaf = _lists[leaf];
-
-                if (adjToPotentialLeaf.size() <= 1) {
+                if (_lists[leaf].size() <= 1) {
                     _leafs.push_back(leaf);
                 }
             }
