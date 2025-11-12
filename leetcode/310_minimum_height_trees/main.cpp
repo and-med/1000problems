@@ -13,14 +13,6 @@ public:
     private:
         map<int, set<int>> _lists;
 
-        void insert(int left, int right) {
-            if (_lists.find(left) != _lists.end()) {
-                _lists[left].insert(right);
-            } else {
-                _lists[left] = set<int>{ right };
-            }
-        }
-
         void remove(int left, int right) {
             _lists.erase(left);
             _lists[right].erase(left);
@@ -32,9 +24,15 @@ public:
             }
         }
     public:
+        AdjLists(int n): _lists() {
+            for (int i = 0; i < n; i++) {
+                _lists[i] = set<int>();
+            }
+        }
+
         void insert(const vector<int>& edge) {
-            this->insert(edge[0], edge[1]);
-            this->insert(edge[1], edge[0]);
+            _lists[edge[0]].insert(edge[1]);
+            _lists[edge[1]].insert(edge[0]);
         }
 
         size_t size() const {
@@ -42,10 +40,16 @@ public:
         }
 
         void removeLeafs() {
+            vector<pair<int, int>> to_remove;
+
             for (auto pair : _lists) {
                 if (pair.second.size() == 1) {
-                    remove(pair.first, *pair.second.begin());
+                    to_remove.push_back(make_pair(pair.first, *pair.second.begin()));
                 }
+            }
+
+            for (auto pair : to_remove) {
+                remove(pair.first, pair.second);
             }
         }
 
@@ -59,7 +63,7 @@ public:
     };
 
     vector<int> findMinHeightTrees(int n, vector<vector<int>>& edges) {
-        AdjLists adjLists;
+        AdjLists adjLists(n);
 
         for (auto edge : edges) {
             adjLists.insert(edge);
@@ -131,11 +135,18 @@ int main() {
             7,
             {{0,1},{1,2},{1,3},{2,4},{3,5},{4,6}},
             {1,2}
+        },
+        {
+            "test 7",
+            1,
+            {},
+            {0},
         }
     };
 
     for (auto test: tests) {
         Solution sol;
+
         auto actual = sol.findMinHeightTrees(test.size, test.edges);
 
         sort(actual.begin(), actual.end());
