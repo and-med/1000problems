@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
-#include <set>
+#include <unordered_set>
 #include <algorithm>
 #include <numeric>
 #include <queue>
@@ -11,11 +11,11 @@ class Solution {
 public:
     class AdjLists {
     private:
-        vector<set<int>> _lists;
+        vector<unordered_set<int>> _lists;
         vector<int> _leafs;
         int _n;
     public:
-        AdjLists(int n, const vector<vector<int>>& edges): _n(n), _lists(n, set<int>()), _leafs() {
+        AdjLists(int n, const vector<vector<int>>& edges): _n(n), _lists(n, unordered_set<int>()), _leafs() {
             for (auto edge : edges) {
                 _lists[edge[0]].insert(edge[1]);
                 _lists[edge[1]].insert(edge[0]);
@@ -33,7 +33,7 @@ public:
         }
 
         void removeLeafs() {
-            set<int> potentialLeafs;
+            unordered_set<int> potentialLeafs;
 
             for (auto leaf : _leafs) {
                 // Leafs have exactly one adj vertice
