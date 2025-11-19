@@ -11,19 +11,20 @@ class Solution {
 public:
     class AdjLists {
     private:
-        vector<unordered_set<int>> _lists;
-        vector<int> _leafs;
+        vector<vector<int>> _lists;
+        queue<int> _leafs;
+        vector<int> _indg;
         int _n;
     public:
-        AdjLists(int n, const vector<vector<int>>& edges): _n(n), _lists(n, unordered_set<int>()), _leafs() {
+        AdjLists(int n, const vector<vector<int>>& edges): _n(n), _lists(n, vector<int>()), _leafs(), _indg(n) {
             for (auto edge : edges) {
-                _lists[edge[0]].insert(edge[1]);
-                _lists[edge[1]].insert(edge[0]);
+                _lists[edge[0]].push_back(edge[1]); _indg[edge[0]]++;
+                _lists[edge[1]].push_back(edge[0]); _indg[edge[1]]++;
             }
 
             for (int i = 0; i < n; i++) {
-                if (_lists[i].size() <= 1) {
-                    _leafs.push_back(i);
+                if (_indg[i] == 1) {
+                    _leafs.emplace(i);
                 }
             }
         }
@@ -33,32 +34,37 @@ public:
         }
 
         void removeLeafs() {
-            unordered_set<int> potentialLeafs;
+            int leafsSize = _leafs.size();
 
-            for (auto leaf : _leafs) {
-                // Leafs have exactly one adj vertice
-                auto potentialLeaf = *_lists[leaf].begin();
+            for (int i = 0; i < leafsSize; i++) {
+                int leaf = _leafs.front(); _leafs.pop();
                 _n--;
-                _lists[potentialLeaf].erase(leaf);
-                potentialLeafs.insert(potentialLeaf);
-            }
-
-            // Build new leafs from potential leafs!
-            _leafs.clear();
-
-            for (auto leaf : potentialLeafs) {
-                if (_lists[leaf].size() <= 1) {
-                    _leafs.push_back(leaf);
+                
+                for (auto& neighbor: _lists[leaf]) {
+                    _indg[neighbor]--;
+                    if (_indg[neighbor] == 1) {
+                        _leafs.emplace(neighbor);
+                    }
                 }
             }
         }
 
         vector<int> leafs() {
-            return _leafs;
+            vector<int> ans;
+
+            while (!_leafs.empty()) {
+                ans.push_back(_leafs.front()); _leafs.pop();
+            }
+
+            return ans;
         }
     };
 
     vector<int> findMinHeightTrees(int n, vector<vector<int>>& edges) {
+        if (n == 1) {
+            return {0};
+        }
+
         AdjLists adjLists(n, edges);
 
         // 2 or less - means leafs will contain tree roots!
